@@ -1,5 +1,5 @@
 ##
-# My Great Makefile v0.5.0
+# My Great Makefile v0.5.1
 #
 # Julien Fontanet <julien.fontanet@isonoe.net>
 #
@@ -32,7 +32,14 @@
 # The target for the second project is explicited, it will be “bin/pgm2.exe”, to
 # the contrary, for the first project, the default rule is used which specify
 # that its target will be “bin/pgm1”.
+#
+# One last thing, if no projects are declared, a default one is created
+# (“DEFAULT”), its default sources are all “.c” and “.cpp” files in the “src/”
+# directory and its default target is “bin/default”.
 ##
+
+# If there is a configuration file, includes it.
+-include mgm.config
 
 #########################
 # Default configuration #
@@ -67,7 +74,7 @@ CXXFLAGS := -std=c++0x -pedantic -Wall -Wextra -Winline -Wconversion $(CXXFLAGS)
 ifeq ($(PROJECTS),)
 PROJECTS       := DEFAULT
 DEFAULT_SRCS   ?= $(shell find src/ -name '*.c' -o -name '*.cpp')
-DEFAULT_TARGET ?= bin/default.bin
+DEFAULT_TARGET ?= bin/default
 endif
 
 ###################
@@ -143,7 +150,7 @@ $(1)_DEPS    := $$(addsuffix .d,$$($(1)_SRCS))
 
 $$($(1)_OBJECTS): CFLAGS := $(CFLAGS) $$($(1)_CFLAGS)
 $$($(1)_OBJECTS): CXXFLAGS := $(CXXFLAGS) $$($(1)_CXXFLAGS)
-$$($(1)_OBJECTS): Makefile
+$$($(1)_OBJECTS): $(MAKEFILE_LIST)
 
 -include $$($(1)_DEPS)
 
