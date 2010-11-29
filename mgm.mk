@@ -8,8 +8,8 @@
 
 ##
 # This Makefile works only with GNU make and gcc/g++ (g++ is used for linking).
-# The C prefix is ".c".
-# The C++ prefix is ".cpp".
+# The C suffix is ".c".
+# The C++ suffix is ".cpp".
 #
 # This file is aimed to be included in a Makefile after some configuration has
 # been done through variables.
@@ -70,7 +70,7 @@ bindir ?= $(exec_prefix)/bin
 CFLAGS   := -std=c99 -pedantic -Wall -Wextra -Winline -Wconversion $(CFLAGS)
 CXXFLAGS := -std=c++0x -pedantic -Wall -Wextra -Winline -Wconversion $(CXXFLAGS)
 
-# If there is no projects defined.
+# If there are no projects defined.
 ifeq ($(PROJECTS),)
 PROJECTS       := DEFAULT
 DEFAULT_SRCS   ?= $(shell find src/ -name '*.c' -o -name '*.cpp')
