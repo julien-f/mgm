@@ -1,9 +1,14 @@
 ##
-# My Great Makefile v0.5.1
+# My Great Makefile v0.5.2
 #
 # Julien Fontanet <julien.fontanet@isonoe.net>
 #
 # Copyleft 2010
+#
+# 2011-03-21 - v0.5.2
+# - The extra warnings can be deactivated by setting EXTRA_WARNINGS to 0.
+# - Include directories  may be specified with the  global variable INCLUDE_DIRS
+#  or with the per-project variable $(project_name)_INCLUDE_DIRS.
 ##
 
 ##
@@ -57,6 +62,9 @@ OPENMP ?= 0
 # Enables profiling.
 PROFILING ?= 0
 
+# Extra warnings?
+EXTRA_WARNINGS ?= 1
+
 # Strips the binary from all its debug information (reduce the binary size).
 STRIP_BIN ?= 0
 
@@ -67,8 +75,8 @@ prefix ?= /usr/local
 exec_prefix ?= $(prefix)
 bindir ?= $(exec_prefix)/bin
 
-CFLAGS   := -std=c99 -pedantic -Wall -Wextra -Winline -Wconversion $(CFLAGS)
-CXXFLAGS := -std=c++0x -pedantic -Wall -Wextra -Winline -Wconversion $(CXXFLAGS)
+CFLAGS   := -std=c99 -pedantic -Wall $(CFLAGS)
+CXXFLAGS := -std=c++98 -pedantic -Wall $(CXXFLAGS)
 
 # If there are no projects defined.
 ifeq ($(PROJECTS),)
@@ -88,11 +96,16 @@ CXX            := g++
 CXXFLAGS       += -MMD
 
 ifeq ($(DEBUG),1)
-CFLAGS += -ggdb3
+CFLAGS   += -ggdb3
 CXXFLAGS += -ggdb3
 else
-CFLAGS += -DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0
+CFLAGS   += -DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0
 CXXFLAGS += -DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0
+endif
+
+ifeq ($(EXTRA_WARNINGS),1)
+CFLAGS   += -Wextra -Winline -Wconversion
+CXXFLAGS += -Wextra -Winline -Wconversion
 endif
 
 ifeq ($(OPENMP),1)
@@ -148,8 +161,8 @@ $(1)_INSTALL ?= $$($(1)_INSTALL_DIR)/$$(notdir $$($(1)_TARGET))
 $(1)_OBJECTS := $$(addsuffix .o,$$($(1)_SRCS))
 $(1)_DEPS    := $$(addsuffix .d,$$($(1)_SRCS))
 
-$$($(1)_OBJECTS): CFLAGS := $(CFLAGS) $$($(1)_CFLAGS)
-$$($(1)_OBJECTS): CXXFLAGS := $(CXXFLAGS) $$($(1)_CXXFLAGS)
+$$($(1)_OBJECTS): CFLAGS := $(CFLAGS) $$($(1)_CFLAGS) $$(patsubst %,-I%,$$(INCLUDE_DIRS) $$($(1)_INCLUDE_DIRS))
+$$($(1)_OBJECTS): CXXFLAGS := $(CXXFLAGS) $$($(1)_CXXFLAGS) $$(patsubst %,-I%,$$(INCLUDE_DIRS) $$($(1)_INCLUDE_DIRS))
 $$($(1)_OBJECTS): $(MAKEFILE_LIST)
 
 -include $$($(1)_DEPS)
