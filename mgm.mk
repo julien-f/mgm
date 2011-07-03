@@ -1,10 +1,16 @@
 ##
-# My Great Makefile v0.5.2
+# My Great Makefile v0.6
 #
 # Julien Fontanet <julien.fontanet@isonoe.net>
 #
-# Copyleft 2010
+# Copyleft 2011
 #
+# 2011-07-03 - v0.6
+# - All the code has been rewritten.
+# - MGM is now able to compile libraries (easily).
+# - Most of the configuration can be made per-project.
+# - The default project is now “default”, in lowercase.
+# - The “OPENMP” option has been removed, because too specific.
 # 2011-03-21 - v0.5.2
 # - The extra warnings can be deactivated by setting EXTRA_WARNINGS to 0.
 # - Include directories  may be specified with the  global variable INCLUDE_DIRS
@@ -16,7 +22,7 @@
 # The C suffix is ".c".
 # The C++ suffix is ".cpp".
 #
-# This file is aimed to be included in a Makefile after some configuration has
+# This file is  aimed to be included in a Makefile  after some configuration has
 # been done through variables.
 #
 #
@@ -30,187 +36,229 @@
 #
 # In the previous example, two projects are declared: “pgm1” and “pgm2”.
 #
-# The source file for the first one is explicited, it is “pgm1.cpp” for the
-# second one, the default rule is applied, all the “.c” and “.cpp” files in the
+# The source  file for  the first one  is explicited,  it is “pgm1.cpp”  for the
+# second one, the default rule is applied,  all the “.c” and “.cpp” files in the
 # “pgm2/” directory are used.
 #
 # The target for the second project is explicited, it will be “bin/pgm2.exe”, to
-# the contrary, for the first project, the default rule is used which specify
+# the contrary,  for the first project,  the default rule is  used which specify
 # that its target will be “bin/pgm1”.
 #
-# One last thing, if no projects are declared, a default one is created
-# (“DEFAULT”), its default sources are all “.c” and “.cpp” files in the “src/”
-# directory and its default target is “bin/default”.
+# One  last  thing, if  no  projects  are declared,  a  default  one is  created
+# (“default”), its default  sources are all “.c” and “.cpp”  files in the “src/”
+# directory.
 ##
 
-# If there is a configuration file, includes it.
--include mgm.config
+########################################
+# Global configuration
 
-#########################
-# Default configuration #
-#########################
+VERBOSE        ?= 0
+COLORS         ?= 1
 
-# Enables colored messages during compilation.
-COLORS ?= 1
+########################################
+# Default configuration for each project
 
-# Compiles in debug mode.
-DEBUG ?= 1
+INCLUDE_DIRS ?=
+LINK_DIRS    ?=
+LIBRARIES    ?=
 
-# Compiles with OpenMP.
-OPENMP ?= 0
+# If you  are compiling  a shared  library instead of  an executable,  sets this
+# option to 1. All the objects will be compiled using the “-fPIC” option.
+IS_LIBRARY ?= 0
 
-# Enables profiling.
-PROFILING ?= 0
-
-# Extra warnings?
+DEBUG          ?= 1
+PROFILING      ?= 0
 EXTRA_WARNINGS ?= 1
 
-# Strips the binary from all its debug information (reduce the binary size).
-STRIP_BIN ?= 0
+CFLAGS   ?= -std=c99 -pedantic -Wall
+CXXFLAGS ?= -std=c++98 -pedantic -Wall
+LDFLAGS  ?=
 
-# Displays which commands are executed during compilation.
-VERBOSE ?= 0
+# The “-MMD” option of GCC/G++  enables the generation of dependency files which
+# are  used  to  determine  which  file should  be  (re)compiled.  Modify  these
+# parameters at your own risk.
+CC  := gcc -MMD
+CXX := g++ -MMD
 
-prefix ?= /usr/local
-exec_prefix ?= $(prefix)
-bindir ?= $(exec_prefix)/bin
+########################################
+# Default directories
 
-CFLAGS   := -std=c99 -pedantic -Wall $(CFLAGS)
-CXXFLAGS := -std=c++98 -pedantic -Wall $(CXXFLAGS)
+# See http://www.gnu.org/software/autoconf/manual/make/Directory-Variables.html
+prefix         ?= /usr/local
+exec_prefix    ?= $(prefix)
+bindir         ?= $(exec_prefix)/bin
+sbindir        ?= $(exec_prefix)/sbin
+libexecdir     ?= $(exec_prefix)/libexec
+datarootdir    ?= $(prefix)/share
+datadir        ?= $(datarootdir)
+sysconfdir     ?= $(prefix)/etc
+localstatedir  ?= $(prefix)/var
+includedir     ?= $(prefix)/include
+oldincludedir  ?= $(includedir)
+docrootdir     ?= $(datarootdir)/doc # This entry will be suffixed by the project name.
+infodir        ?= $(datarootdir)/info
+libdir         ?= $(exec_prefix)/lib
+localedir      ?= $(datarootdir)/local
+mandir         ?= $(datarootdir)/man
+
+# The  following  entries  are  not defined:  sharedstatedir,  htmldir,  dvidir,
+# pdfdir, psdir, lispdir, man?dir, manext, man?extdir and srcdir.
+
+
+
+########################################
+########################################
+########################################
+
+
 
 # If there are no projects defined.
 ifeq ($(PROJECTS),)
-PROJECTS       := DEFAULT
-DEFAULT_SRCS   ?= $(shell find src/ -name '*.c' -o -name '*.cpp')
-DEFAULT_TARGET ?= bin/default
+PROJECTS       := default
+default_SRCS   ?= $(shell find src/ -name '*.c' -o -name '*.cpp')
 endif
 
-###################
-# Internal logic. #
-###################
+########################################
 
-.DEFAULT_GOAL  := all
-CC             := gcc
-CFLAGS         += -MMD
-CXX            := g++
-CXXFLAGS       += -MMD
-
-ifeq ($(DEBUG),1)
-CFLAGS   += -ggdb3
-CXXFLAGS += -ggdb3
-else
-CFLAGS   += -DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0
-CXXFLAGS += -DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0
-endif
-
-ifeq ($(EXTRA_WARNINGS),1)
-CFLAGS   += -Wextra -Winline -Wconversion
-CXXFLAGS += -Wextra -Winline -Wconversion
-endif
-
-ifeq ($(OPENMP),1)
-CFLAGS += -fopenmp
-CXXFLAGS += -fopenmp
-LDFLAGS  += -fopenmp
-endif
-
-ifeq ($(PROFILING),1)
-CFLAGS   += -pg
-CXXFLAGS += -pg
-LDFLAGS  += -pg
-endif
+.DEFAULT_GOAL := all
+.PHONY: all clean distclean doc install uninstall
 
 ifneq ($(VERBOSE),1)
 .SILENT:
 endif
 
 ifeq ($(COLORS),1)
-COLOR_RED := \033[0;22;31m
-COLOR_GREEN := \033[0;22;32m
-COLOR_YELLOW := \033[33m
-COLOR_BLUE := \033[0;22;34m
-COLOR_PURPLE := \033[0;22;35m
-COLOR_CYAN := \033[0;22;36m
-
-COLOR_RED_BOLD := \033[0;1;31m
-COLOR_GREEN_BOLD := \033[0;1;32m
-COLOR_YELLOW_BOLD := \033[0;1;33m
-COLOR_BLUE_BOLD := \033[0;1;34m
-COLOR_PURPLE_BOLD := \033[0;1;35m
-COLOR_CYAN_BOLD := \033[0;1;36m
-
-COLOR_NONE := \033[0m
-COLOR_NONE_BOLD := \033[1m
+_COLOR_C := \033[0;1;34m # Blue bold
+_COLOR_L := \033[0;1;35m # Purple bold
+_COLOR_I := \033[0;1;33m # Yellow bold
+_COLOR_U := \033[0;1;33m # Yellow bold
+_COLOR_R := \033[0m
 endif
 
-# Rules to always execute.
-.PHONY: all clean distclean install uninstall
+########################################
 
-# Generic rule definition.
+PROJECT_SPECIFIC_VARS  :=  INCLUDE_DIRS  LINK_DIRS  LIBRARIES  IS_LIBRARY  DEBUG	\
+                         PROFILING EXTRA_WARNINGS CFLAGS CXXFLAGS LDFLAGS CC CXX	\
+                         prefix    exec_prefix    bindir   sbindir    libexecdir	\
+                         datarootdir datadir sysconfdir localstatedir includedir	\
+                         oldincludedir   docrootdir  infodir   libdir  localedir	\
+                         mandir
+
+define PROJECT_SPECIFIC_VAR
+$(1)_$(2) ?= $$($(2))
+endef
+
+########################################
+
+define SANITIZE_OPTION
+override $(1)_$(2) := $$(findstring 1,$$($(1)_$(2)))
+endef
+
+########################################
+
 define PROJECT_TPL
-# The default target is "bin/PROJECT_NAME".
-$(1)_TARGET ?= bin/$(1)
 
-# The default sources are "PROJECT_NAME/**/*.{c,cpp}".
-$(1)_SRCS ?= $$(shell find $(1)/ -name '*.c' -o -name '*.cpp')
+# Defines the project-specific  variables with the default ones  if they are not
+# already set.
+$$(foreach var,\
+           $(PROJECT_SPECIFIC_VARS),\
+           $$(eval $$(call PROJECT_SPECIFIC_VAR,$(1),$$(var))))
 
-# The default install directory is "PREFIX/bin".
-$(1)_INSTALL_DIR ?= $(bindir)
-$(1)_INSTALL ?= $$($(1)_INSTALL_DIR)/$$(notdir $$($(1)_TARGET))
+# Filters this options to simplify conditional treatments (1 or empty).
+$$(foreach var,\
+           IS_LIBRARY DEBUG PROFILING EXTRA_WARNINGS,\
+           $$(eval $$(call SANITIZE_OPTION,$(1),$$(var))))
 
-$(1)_OBJECTS := $$(addsuffix .o,$$($(1)_SRCS))
-$(1)_DEPS    := $$(addsuffix .d,$$($(1)_SRCS))
+# This is where the documentation will be saved.
+$(1)_docdir ?= $$($(1)_docrootdir)/$(1)
 
-$$($(1)_OBJECTS): CFLAGS := $(CFLAGS) $$($(1)_CFLAGS) $$(patsubst %,-I%,$$(INCLUDE_DIRS) $$($(1)_INCLUDE_DIRS))
-$$($(1)_OBJECTS): CXXFLAGS := $(CXXFLAGS) $$($(1)_CXXFLAGS) $$(patsubst %,-I%,$$(INCLUDE_DIRS) $$($(1)_INCLUDE_DIRS))
-$$($(1)_OBJECTS): $(MAKEFILE_LIST)
+# Where should the file be compiled? (default is bin/PROJECT_NAME or bin/libPROJECT_NAME.so)
+$(1)_TARGET ?= bin/$$(if $$($(1)_IS_LIBRARY),lib$(1).so,$(1))
 
--include $$($(1)_DEPS)
+# What are the source files of this project? (default is all files in PROJECT_NAME/)
+$(1)_SRCS   ?= $$(shell find $(1)/ -name '*.c' -o -name '*.cpp')
+
+# Where to install the target?
+$(1)_INSTALL ?= $$(if $$($(1)_IS_LIBRARY),$$($(1)_libdir),$$($(1)_bindir))/$$(notdir $$($(1)_TARGET))
+
+# Files used for the compilation.
+_$(1)_OBJS := $$(addsuffix .o,$$($(1)_SRCS))
+_$(1)_DEPS := $$(addsuffix .d,$$($(1)_SRCS))
+
+# Builds options list from certain variables.
+_$(1)_INCLUDE_DIRS := $$($(1)_INCLUDE_DIRS:%=-I%)
+_$(1)_LINK_DIRS    := $$($(1)_LINK_DIRS:%=-L%)
+_$(1)_LIBRARIES    := $$($(1)_LIBRARIES:%=-l%)
+
+# Additional conditional flags.
+_tmp := $$(if $$($(1)_IS_LIBRARY),-fPIC)\
+        $$(if $$($(1)_DEBUG),-ggdb3,-DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0)\
+        $$(if $$($(1)_PROFILING),-pg)\
+        $$(if $$($(1)_EXTRA_WARNINGS),-Wextra -Wconversion -Winline)
+override $(1)_CFLAGS   := $$($(1)_CFLAGS) $$(_tmp)
+override $(1)_CXXFLAGS := $$($(1)_CXXFLAGS) $$(_tmp)
+
+_tmp := -shared -Wl,-soname,$(1)
+override $(1)_LDFLAGS  := $$($(1)_LDFLAGS) $$(if $$($(1)_IS_LIBRARY),$$(_tmp)) $$(if $$($(1)_PROFILING),-pg)
+
+# Parameters to build the objects.
+$$(_$(1)_OBJS): override CC := $$($(1)_CC)
+$$(_$(1)_OBJS): override CXX := $$($(1)_CXX)
+$$(_$(1)_OBJS): override CFLAGS := $$($(1)_CFLAGS) $$(_$(1)_INCLUDE_DIRS)
+$$(_$(1)_OBJS): override CXXFLAGS := $$($(1)_CXXFLAGS) $$(_$(1)_INCLUDE_DIRS)
+$$(_$(1)_OBJS): $(MAKEFILE_LIST)
+
+# Includes the dependencies files.
+-include $$(_$(1)_DEPS)
+
+.PHONY: clean-$(1) distclean-$(1) doc-$(1) install-$(1) uninstall-$(1)
 
 all: $$($(1)_TARGET)
-$$($(1)_TARGET): $$($(1)_OBJECTS)
-	mkdir -p -- '$$(@D)'
-	@printf '  $(COLOR_PURPLE_BOLD)L  %s$(COLOR_NONE)\n' '$$@'
-	$(CXX) $(LDFLAGS) $$($(1)_LDFLAGS) -o '$$@' $$^
-ifeq ($(STRIP_BIN),1)
-	strip '$$@'
-endif
-
-$$($(1)_INSTALL): $$($(1)_TARGET)
-	@printf '  $(COLOR_YELLOW_BOLD)I  %s$(COLOR_NONE)\n' '$$($(1)_INSTALL)'
-	mkdir -p -- '$$($(1)_INSTALL_DIR)'
-	cp -f $$^ '$$($(1)_INSTALL)'
-
-.PHONY: install-$(1) uninstall-$(1) clean-$(1) distclean-$(1)
-
-install: install-$(1)
-install-$(1): $$($(1)_INSTALL)
-
-uninstall: uninstall-$(1)
-uninstall-$(1):
-	@printf '  $(COLOR_YELLOW_BOLD)U  %s$(COLOR_NONE)\n' '$$($(1)_INSTALL)'
-	$(RM) -v '$$($(1)_INSTALL)'
+$$($(1)_TARGET): $$(_$(1)_OBJS)
+	mkdir -p -- $$(dir $$($(1)_TARGET))
+	@printf '  $(_COLOR_L)L  %s$(_COLOR_R)\n' $$($(1)_TARGET)
+	$$($(1)_CXX) $$($(1)_LDFLAGS) \
+                 $$(_$(1)_LINK_DIRS) $$(_$(1)_LIBRARIES) \
+                 -o $$($(1)_TARGET) $$^
 
 clean: clean-$(1)
 clean-$(1):
-	$(RM) -v $$($(1)_DEPS) $$($(1)_OBJECTS)
+	$(RM) -v $$(_$(1)_DEPS) $$(_$(1)_OBJS)
 
 distclean: distclean-$(1)
 distclean-$(1): clean-$(1)
 	$(RM) -v $$($(1)_TARGET)
-	rmdir --parents --ignore-fail-on-non-empty -- '$$(dir $$($(1)_TARGET))'
+	rmdir --parents --ignore-fail-on-non-empty -- $$(dir $$($(1)_TARGET))
+
+install: install-$(1)
+install-$(1): $$($(1)_INSTALL)
+$$($(1)_INSTALL): $$($(1)_TARGET)
+	@printf '  $(_COLOR_I)I  %s$(_COLOR_R)\n' $$($(1)_INSTALL)
+	mkdir -p -- $$(dir $$($(1)_INSTALL))
+	cp -f $$^ $$($(1)_INSTALL)
+
+uninstall: $$(if $$(wildcard $$($(1)_INSTALL)),uninstall-$(1))
+uninstall-$(1):
+	@printf '  $(_COLOR_U)U  %s$(_COLOR_R)\n' $$($(1)_INSTALL)
+	$(RM) -v $$($(1)_INSTALL)
+
+#doc: doc-$(1)
+
 endef
+
+########################################
 
 # Creates rules for each project.
 $(foreach project,$(PROJECTS),$(eval $(call PROJECT_TPL,$(project))))
 
-# Generic rules
+########################################
+
 .SUFFIXES: # Disable auto rules
 
 %.c.o: %.c
-	@printf '  $(COLOR_BLUE_BOLD)CC %s$(COLOR_NONE)\n' '$@'
-	$(CC) $(CFLAGS) -c -o '$@' '$<'
+	@printf '  $(_COLOR_C)CC %s$(_COLOR_R)\n' $@
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.cpp.o: %.cpp
-	@printf '  $(COLOR_BLUE_BOLD)CC %s$(COLOR_NONE)\n' '$@'
-	$(CXX) $(CXXFLAGS) -c -o '$@' '$<'
+	@printf '  $(_COLOR_C)CC %s$(_COLOR_R)\n' $@
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
