@@ -1,10 +1,12 @@
 ##
-# My Great Makefile v0.6
+# My Great Makefile v0.6.2
 #
 # Julien Fontanet <julien.fontanet@isonoe.net>
 #
 # Copyleft 2011
 #
+# 2011-07-04 - v0.6.2
+# - Bug fixes.
 # 2011-07-04 - v0.6.1
 # - Out-of-tree build!
 # - No more error on “distclean” when the directory does not exist.
@@ -207,7 +209,7 @@ $(1)_INSTALL ?= $$(if $$($(1)_IS_LIBRARY),$$($(1)_libdir),$$($(1)_bindir))/$$(no
 # Files used for the compilation.
 $$(foreach src,\
            $$($(1)_SRCS),\
-           $$(eval $$(call ADD_OBJECT,_$(1)_OBJS,$$(src),$$($(1)_BUILD_DIR)/$$($(1)_SRCS:%=%.o))))
+           $$(eval $$(call ADD_OBJECT,_$(1)_OBJS,$$(src),$$($(1)_BUILD_DIR)/$$(src:%=%.o))))
 _$(1)_DEPS := $$(_$(1)_OBJS:%.o=%.d)
 
 # Builds options list from certain variables.
@@ -249,7 +251,7 @@ $$($(1)_TARGET): $$(_$(1)_OBJS)
                  -o $$($(1)_TARGET) $$^
 
 clean: clean-$(1)
-clean-$(1): _DIRS := $$(wildcard $$(dir $$(_$(1)_OBJS)))
+clean-$(1): _DIRS := $$(wildcard $$(sort $$(dir $$(_$(1)_OBJS))))
 clean-$(1):
 	$(RM) -v $$(_$(1)_DEPS) $$(_$(1)_OBJS)
 	$$(if $$(_DIRS),$(RMDIR) $$(_DIRS))
