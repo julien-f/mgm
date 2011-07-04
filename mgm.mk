@@ -1,10 +1,12 @@
 ##
-# My Great Makefile v0.6.2
+# My Great Makefile v0.6.3
 #
 # Julien Fontanet <julien.fontanet@isonoe.net>
 #
 # Copyleft 2011
 #
+# 2011-07-04 - v0.6.3
+# - Stupid bug (impossible to use a different BUILD_DIR than “.mgm”) fixed.
 # 2011-07-04 - v0.6.2
 # - Bug fixes.
 # 2011-07-04 - v0.6.1
@@ -19,7 +21,7 @@
 # 2011-03-21 - v0.5.2
 # - The extra warnings can be deactivated by setting EXTRA_WARNINGS to 0.
 # - Include directories  may be specified with the  global variable INCLUDE_DIRS
-#  or with the per-project variable $(project_name)_INCLUDE_DIRS.
+#   or with the per-project variable $(project_name)_INCLUDE_DIRS.
 ##
 
 ##
@@ -60,7 +62,7 @@
 VERBOSE ?= 0
 COLORS  ?= 1
 
-MKDIR := mkdir -p --
+MKDIR := mkdir --parents --
 RMDIR := rmdir --parents --ignore-fail-on-non-empty --
 
 ########################################
@@ -290,12 +292,12 @@ $(foreach project,$(PROJECTS),$(eval $(call PROJECT_TPL,$(project))))
 
 .SUFFIXES: # Disable auto rules
 
-.mgm/%.c.o:
+%.c.o:
 	$(MKDIR) $(dir $@)
 	@printf '  $(_COLOR_C)CC %s$(_COLOR_R)\n' $(SRC)
 	$(CC) $(CFLAGS) -c -o $@ $(SRC)
 
-.mgm/%.cpp.o:
+%.cpp.o:
 	$(MKDIR) $(dir $@)
 	@printf '  $(_COLOR_C)CC %s$(_COLOR_R)\n' $(SRC)
 	$(CXX) $(CXXFLAGS) -c -o $@ $(SRC)
