@@ -144,30 +144,33 @@ PROJECT_SPECIFIC_VARS  :=  INCLUDE_DIRS  LINK_DIRS  LIBRARIES  IS_LIBRARY  DEBUG
                          oldincludedir   docrootdir  infodir   libdir  localedir	\
                          mandir
 
-define PROJECT_SPECIFIC_VAR
-$(1)_$(2) ?= $$($(2))
+# $(call INHERIT_VAR,VAR_NAME,PREFIX)
+define INHERIT_VAR
+$(2)_$(1) ?= $$($(1))
 endef
 
 ########################################
 
+# $(call SANITIZE_OPTION,OPTION_NAME)
 define SANITIZE_OPTION
-override $(1)_$(2) := $$(findstring 1,$$($(1)_$(2)))
+override $(1) := $$(findstring 1,$$($(1)))
 endef
 
 ########################################
 
+# $(call PROJECT_TPL,PROJECT_NAME)
 define PROJECT_TPL
 
 # Defines the project-specific  variables with the default ones  if they are not
 # already set.
 $$(foreach var,\
            $(PROJECT_SPECIFIC_VARS),\
-           $$(eval $$(call PROJECT_SPECIFIC_VAR,$(1),$$(var))))
+           $$(eval $$(call INHERIT_VAR,$$(var),$(1))))
 
 # Filters this options to simplify conditional treatments (1 or empty).
 $$(foreach var,\
            IS_LIBRARY DEBUG PROFILING EXTRA_WARNINGS,\
-           $$(eval $$(call SANITIZE_OPTION,$(1),$$(var))))
+           $$(eval $$(call SANITIZE_OPTION,$(1)_$$(var))))
 
 # This is where the documentation will be saved.
 $(1)_docdir ?= $$($(1)_docrootdir)/$(1)
@@ -176,14 +179,14 @@ $(1)_docdir ?= $$($(1)_docrootdir)/$(1)
 $(1)_TARGET ?= bin/$$(if $$($(1)_IS_LIBRARY),lib$(1).so,$(1))
 
 # What are the source files of this project? (default is all files in PROJECT_NAME/)
-$(1)_SRCS   ?= $$(shell find $(1)/ -name '*.c' -o -name '*.cpp')
+$(1)_SRCS ?= $$(shell find $(1)/ -name '*.c' -o -name '*.cpp')
 
 # Where to install the target?
 $(1)_INSTALL ?= $$(if $$($(1)_IS_LIBRARY),$$($(1)_libdir),$$($(1)_bindir))/$$(notdir $$($(1)_TARGET))
 
 # Files used for the compilation.
-_$(1)_OBJS := $$(addsuffix .o,$$($(1)_SRCS))
-_$(1)_DEPS := $$(addsuffix .d,$$($(1)_SRCS))
+_$(1)_OBJS := $$($(1)_SRCS:%=%.o)
+_$(1)_DEPS := $$($(1)_SRCS:%=%.d)
 
 # Builds options list from certain variables.
 _$(1)_INCLUDE_DIRS := $$($(1)_INCLUDE_DIRS:%=-I%)
@@ -199,12 +202,14 @@ override $(1)_CFLAGS   := $$($(1)_CFLAGS) $$(_tmp)
 override $(1)_CXXFLAGS := $$($(1)_CXXFLAGS) $$(_tmp)
 
 _tmp := -shared -Wl,-soname,$(1)
-override $(1)_LDFLAGS  := $$($(1)_LDFLAGS) $$(if $$($(1)_IS_LIBRARY),$$(_tmp)) $$(if $$($(1)_PROFILING),-pg)
+override $(1)_LDFLAGS := $$($(1)_LDFLAGS)\
+                         $$(if $$($(1)_IS_LIBRARY),$$(_tmp))\
+                         $$(if $$($(1)_PROFILING),-pg)
 
 # Parameters to build the objects.
-$$(_$(1)_OBJS): override CC := $$($(1)_CC)
+$$(_$(1)_OBJS): override CC  := $$($(1)_CC)
 $$(_$(1)_OBJS): override CXX := $$($(1)_CXX)
-$$(_$(1)_OBJS): override CFLAGS := $$($(1)_CFLAGS) $$(_$(1)_INCLUDE_DIRS)
+$$(_$(1)_OBJS): override CFLAGS   := $$($(1)_CFLAGS) $$(_$(1)_INCLUDE_DIRS)
 $$(_$(1)_OBJS): override CXXFLAGS := $$($(1)_CXXFLAGS) $$(_$(1)_INCLUDE_DIRS)
 $$(_$(1)_OBJS): $(MAKEFILE_LIST)
 
