@@ -1,10 +1,16 @@
 ##
-# My Great Makefile v0.6.3
+# My Great Makefile v0.6.4
 #
 # Julien Fontanet <julien.fontanet@isonoe.net>
 #
 # Copyleft 2011
 #
+# 2011-07-29 - v0.6.4
+# - Use  the  same  system  for  warnings  as  the  Linux  Kernel.  Consequently
+#   EXTRA_WARNINGS as been removed and replace with WLEVELS.
+# - The variable STRICT can be used to turn all warnings into errors.
+# - The notion of  project as been replaced with the notion  of targets. All the
+#   variables as been renamed accordingly.
 # 2011-07-04 - v0.6.3
 # - Stupid bug (impossible to use a different BUILD_DIR than “.mgm”) fixed.
 # 2011-07-04 - v0.6.2
@@ -36,22 +42,22 @@
 # Example
 # -------
 #
-#     PROJECTS := pgm1 pgm2
+#     TARGETS := pgm1 pgm2
 #     pgm1_SRCS := pgm1.cpp
-#     pgm2_TARGET := bin/pgm2.exe
+#     pgm2_NAME := bin/pgm2.exe
 #     include mgm.mk
 #
-# In the previous example, two projects are declared: “pgm1” and “pgm2”.
+# In the previous example, two targets are declared: “pgm1” and “pgm2”.
 #
 # The source  file for  the first one  is explicited,  it is “pgm1.cpp”  for the
 # second one, the default rule is applied,  all the “.c” and “.cpp” files in the
 # “pgm2/” directory are used.
 #
-# The target for the second project is explicited, it will be “bin/pgm2.exe”, to
-# the contrary,  for the first project,  the default rule is  used which specify
-# that its target will be “bin/pgm1”.
+# The name  for the second target  is explicited, it will  be “bin/pgm2.exe”, to
+# the contrary,  for the first  target, the default  rule is used  which specify
+# that its name will be “bin/pgm1”.
 #
-# One  last  thing, if  no  projects  are declared,  a  default  one is  created
+# One  last  thing,  if no  targets  are  declared,  a  default one  is  created
 # (“default”), its default  sources are all “.c” and “.cpp”  files in the “src/”
 # directory.
 ##
@@ -66,7 +72,21 @@ MKDIR := mkdir --parents --
 RMDIR := rmdir --parents --ignore-fail-on-non-empty --
 
 ########################################
-# Default configuration for each project
+# Default configuration for each target
+
+# Which warning levels do you want to use:
+#
+# 1 - warnings that may be relevant and does not occur too often
+# 2 - warnings that occur quite often but may still be relevant
+# 3 - the more obscure warnings, can most likely be ignored
+#
+# You can combine them:
+#
+#     WLEVELS = 12
+WLEVELS ?= 1
+
+# Set this variable to 1 to turn all warnings into errors.
+STRICT ?= 0
 
 INCLUDE_DIRS ?=
 LINK_DIRS    ?=
@@ -76,16 +96,15 @@ LIBRARIES    ?=
 # option to 1. All the objects will be compiled using the “-fPIC” option.
 IS_LIBRARY ?= 0
 
-DEBUG          ?= 1
-PROFILING      ?= 0
-EXTRA_WARNINGS ?= 1
+DEBUG     ?= 1
+PROFILING ?= 0
 
 CFLAGS   ?= -std=c99 -pedantic -Wall
 CXXFLAGS ?= -std=c++98 -pedantic -Wall
 LDFLAGS  ?=
 
 # The “-MMD” option of GCC/G++  enables the generation of dependency files which
-# are  used  to  determine  which  file should  be  (re)compiled.  Modify  these
+# are  used  to determine  which  file  should  be (re)compiled.   Modify  these
 # parameters at your own risk.
 CC  := gcc -MMD
 CXX := g++ -MMD
@@ -109,7 +128,7 @@ sysconfdir    ?= $(prefix)/etc
 localstatedir ?= $(prefix)/var
 includedir    ?= $(prefix)/include
 oldincludedir ?= $(includedir)
-docrootdir    ?= $(datarootdir)/doc # This entry will be suffixed by the project name.
+docrootdir    ?= $(datarootdir)/doc # This entry will be suffixed by the target.
 infodir       ?= $(datarootdir)/info
 libdir        ?= $(exec_prefix)/lib
 localedir     ?= $(datarootdir)/local
@@ -126,9 +145,9 @@ mandir        ?= $(datarootdir)/man
 
 
 
-# If there are no projects defined.
-ifeq ($(PROJECTS),)
-PROJECTS     := default
+# If there are no targets defined.
+ifeq ($(TARGETS),)
+TARGETS      := default
 default_SRCS ?= $(shell find src/ -name '*.c' -o -name '*.cpp')
 endif
 
@@ -153,13 +172,48 @@ _COLOR_R := \033[0m
 endif
 
 ########################################
+# This comes from the Linux kernel build system.
 
-PROJECT_SPECIFIC_VARS  :=  INCLUDE_DIRS  LINK_DIRS  LIBRARIES  IS_LIBRARY  DEBUG	\
-                         PROFILING EXTRA_WARNINGS CFLAGS CXXFLAGS LDFLAGS CC CXX	\
-                         BUILD_DIR prefix  exec_prefix bindir sbindir libexecdir	\
-                         datarootdir datadir sysconfdir localstatedir includedir	\
-                         oldincludedir   docrootdir  infodir   libdir  localedir	\
-                         mandir
+WARNINGS-1 := extra unused no-unused-parameter
+WARNINGS-1 += missing-declarations
+WARNINGS-1 += missing-format-attribute
+WARNINGS-1 += missing-prototypes
+WARNINGS-1 += old-style-definition
+WARNINGS-1 += missing-include-dirs
+WARNINGS-1 += unused-but-set-variable
+
+WARNINGS-2 := aggregate-return
+WARNINGS-2 += cast-align
+WARNINGS-2 += disabled-optimization
+WARNINGS-2 += nested-externs
+WARNINGS-2 += shadow
+WARNINGS-2 += logical-op
+
+WARNINGS-3 := bad-function-cast
+WARNINGS-3 += cast-qual
+WARNINGS-3 += conversion
+WARNINGS-3 += packed
+WARNINGS-3 += padded
+WARNINGS-3 += pointer-arith
+WARNINGS-3 += redundant-decls
+WARNINGS-3 += switch-default
+WARNINGS-3 += packed-bitfield-compat
+WARNINGS-3 += vla
+
+# CFLAGS += $(call GET_WARNINGS,$(WLEVELS))
+GET_WARNINGS = $(patsubst %,-W%,\
+                          $(WARNINGS-$(findstring 1, $(1)))\
+                          $(WARNINGS-$(findstring 2, $(1)))\
+                          $(WARNINGS-$(findstring 3, $(1))))
+
+########################################
+
+TARGET_SPECIFIC_VARS  :=   WLEVELS  STRICT  INCLUDE_DIRS   LINK_DIRS  LIBRARIES	\
+                        IS_LIBRARY DEBUG  PROFILING CFLAGS CXXFLAGS  LDFLAGS CC	\
+                        CXX   BUILD_DIR  prefix   exec_prefix   bindir  sbindir	\
+                        libexecdir datarootdir datadir sysconfdir localstatedir	\
+                        includedir  oldincludedir   docrootdir  infodir  libdir	\
+                        localedir mandir
 
 # $(call INHERIT_VAR,VAR_NAME,PREFIX)
 define INHERIT_VAR
@@ -183,31 +237,33 @@ endef
 
 ########################################
 
-# $(call PROJECT_TPL,PROJECT_NAME)
-define PROJECT_TPL
+# $(call TARGET_TPL,TARGET_NAME)
+define TARGET_TPL
 
-# Defines the project-specific  variables with the default ones  if they are not
+# Defines the  target-specific variables with the  default ones if  they are not
 # already set.
 $$(foreach var,\
-           $(PROJECT_SPECIFIC_VARS),\
+           $(TARGET_SPECIFIC_VARS),\
            $$(eval $$(call INHERIT_VAR,$$(var),$(1))))
 
 # Filters this options to simplify conditional treatments (1 or empty).
 $$(foreach var,\
-           IS_LIBRARY DEBUG PROFILING EXTRA_WARNINGS,\
+           STRICT IS_LIBRARY DEBUG PROFILING,\
            $$(eval $$(call SANITIZE_OPTION,$(1)_$$(var))))
 
 # This is where the documentation will be saved.
 $(1)_docdir ?= $$($(1)_docrootdir)/$(1)
 
-# Where should the file be compiled? (default is bin/PROJECT_NAME or bin/libPROJECT_NAME.so)
-$(1)_TARGET ?= bin/$$(if $$($(1)_IS_LIBRARY),lib$(1).so,$(1))
+# Where   should  the  file   be  compiled?   (default  is   bin/TARGET_NAME  or
+# bin/libTARGET_NAME.so)
+$(1)_NAME ?= bin/$$(if $$($(1)_IS_LIBRARY),lib$(1).so,$(1))
 
-# What are the source files of this project? (default is all files in PROJECT_NAME/)
+# What  are  the  source  files  of  this  target?  (default  is  all  files  in
+# TARGET_NAME/)
 $(1)_SRCS ?= $$(shell find $(1)/ -name '*.c' -o -name '*.cpp')
 
 # Where to install the target?
-$(1)_INSTALL ?= $$(if $$($(1)_IS_LIBRARY),$$($(1)_libdir),$$($(1)_bindir))/$$(notdir $$($(1)_TARGET))
+$(1)_INSTALL ?= $$(if $$($(1)_IS_LIBRARY),$$($(1)_libdir),$$($(1)_bindir))/$$(notdir $$($(1)_NAME))
 
 # Files used for the compilation.
 $$(foreach src,\
@@ -224,7 +280,8 @@ _$(1)_LIBRARIES    := $$($(1)_LIBRARIES:%=-l%)
 _tmp := $$(if $$($(1)_IS_LIBRARY),-fPIC)\
         $$(if $$($(1)_DEBUG),-ggdb3,-DNDEBUG -fno-strict-aliasing -funroll-loops -O3 -g0)\
         $$(if $$($(1)_PROFILING),-pg)\
-        $$(if $$($(1)_EXTRA_WARNINGS),-Wextra -Wconversion -Winline)
+        $$(call GET_WARNINGS,$$($(1)_WLEVELS))\
+        $$(if $$($(1)_STRICT),-Werror)
 override $(1)_CFLAGS   := $$($(1)_CFLAGS) $$(_tmp)
 override $(1)_CXXFLAGS := $$($(1)_CXXFLAGS) $$(_tmp)
 
@@ -245,13 +302,13 @@ $$(_$(1)_OBJS): $(MAKEFILE_LIST)
 
 .PHONY: clean-$(1) distclean-$(1) doc-$(1) install-$(1) uninstall-$(1)
 
-all: $$($(1)_TARGET)
-$$($(1)_TARGET): $$(_$(1)_OBJS)
-	$(MKDIR) $$(dir $$($(1)_TARGET))
-	@printf '  $(_COLOR_L)L  %s$(_COLOR_R)\n' $$($(1)_TARGET)
+all: $$($(1)_NAME)
+$$($(1)_NAME): $$(_$(1)_OBJS)
+	$(MKDIR) $$(dir $$($(1)_NAME))
+	@printf '  $(_COLOR_L)L  %s$(_COLOR_R)\n' $$($(1)_NAME)
 	$$($(1)_CXX) $$($(1)_LDFLAGS) \
                  $$(_$(1)_LINK_DIRS) $$(_$(1)_LIBRARIES) \
-                 -o $$($(1)_TARGET) $$^
+                 -o $$($(1)_NAME) $$^
 
 clean: clean-$(1)
 clean-$(1): _DIRS := $$(wildcard $$(sort $$(dir $$(_$(1)_OBJS))))
@@ -260,14 +317,14 @@ clean-$(1):
 	$$(if $$(_DIRS),$(RMDIR) $$(_DIRS))
 
 distclean: distclean-$(1)
-distclean-$(1): _DIR := $$(wildcard $$(dir $$($(1)_TARGET)))
+distclean-$(1): _DIR := $$(wildcard $$(dir $$($(1)_NAME)))
 distclean-$(1): clean-$(1)
-	$(RM) -v $$($(1)_TARGET)
+	$(RM) -v $$($(1)_NAME)
 	$$(if $$(_DIR),$(RMDIR) $$(_DIR))
 
 install: install-$(1)
 install-$(1): $$($(1)_INSTALL)
-$$($(1)_INSTALL): $$($(1)_TARGET)
+$$($(1)_INSTALL): $$($(1)_NAME)
 	@printf '  $(_COLOR_I)I  %s$(_COLOR_R)\n' $$($(1)_INSTALL)
 	$(MKDIR) $$(dir $$($(1)_INSTALL))
 	cp -f $$^ $$($(1)_INSTALL)
@@ -285,8 +342,8 @@ endef
 
 ########################################
 
-# Creates rules for each project.
-$(foreach project,$(PROJECTS),$(eval $(call PROJECT_TPL,$(project))))
+# Creates rules for each target.
+$(foreach target,$(TARGETS),$(eval $(call TARGET_TPL,$(target))))
 
 ########################################
 
